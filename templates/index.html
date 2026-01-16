@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acx Shell - APK Protection Tool</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            50% { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15), 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 1.1em;
+            font-weight: 400;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .file-upload {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .file-upload:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .file-upload.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: block;
+            cursor: pointer;
+        }
+
+        .file-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: #667eea;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .file-name {
+            margin-top: 15px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .options-section {
+            margin-bottom: 30px;
+        }
+
+        .options-title {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .option-item:hover::before {
+            left: 100%;
+        }
+
+        .option-item:hover {
+            background: linear-gradient(135deg, #f0f2ff 0%, #ffffff 100%);
+            transform: translateY(-3px) scale(1.02);
+            border-color: #667eea;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+        }
+
+        .option-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .option-item label {
+            cursor: pointer;
+            flex: 1;
+            color: #333;
+            font-size: 0.95em;
+        }
+
+        .input-group {
+            margin-top: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-group small {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+            font-size: 0.85em;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.15em;
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .submit-btn:hover:not(:disabled)::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.5);
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: translateY(-2px) scale(0.98);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(102, 126, 234, 0.1);
+            border-top: 4px solid #667eea;
+            border-right: 4px solid #764ba2;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1.1em;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .error-message {
+            display: none;
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #c33;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .success-message {
+            display: none;
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #3c3;
+        }
+
+        .success-message.active {
+            display: block;
+        }
+
+        .result-section {
+            display: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .result-icon {
+            font-size: 56px;
+            animation: scaleIn 0.5s ease-out, bounce 2s ease-in-out infinite 0.5s;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .result-title {
+            font-size: 1.8em;
+            font-weight: 800;
+            font-family: 'Poppins', sans-serif;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .result-info {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .result-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .result-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-info-label {
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .result-info-value {
+            font-weight: bold;
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 20px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.15em;
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .download-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .download-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            color: #764ba2;
+        }
+
+        .download-btn:active {
+            transform: translateY(-2px) scale(0.98);
+        }
+
+        .download-btn i {
+            font-size: 1.2em;
+            animation: bounce 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Acx Shell</h1>
+            <p>Protect your Android APK/AAB files with advanced encryption</p>
+        </div>
+        
+        <div class="content">
+            <form id="protectForm" enctype="multipart/form-data">
+                <div class="upload-section">
+                    <div class="file-upload" id="fileUpload">
+                        <input type="file" id="apkFile" name="apk_file" class="file-input" accept=".apk,.aab" required>
+                        <label for="apkFile" class="file-label">
+                            <div class="file-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <div>
+                                <strong><i class="fas fa-hand-pointer"></i> Click to upload</strong> or <i class="fas fa-arrows-alt"></i> drag and drop
+                            </div>
+                            <div style="margin-top: 15px; font-size: 0.95em; color: #666;">
+                                <i class="fas fa-file-archive"></i> APK or AAB file (Max 150MB - Free Tier)
+                            </div>
+                            <div class="file-name" id="fileName"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <div class="options-title">
+                        <i class="fas fa-cog"></i> Protection Options
+                    </div>
+                    
+                    <div class="options-grid">
+                        <div class="option-item">
+                            <input type="checkbox" id="debug" name="debug" value="true">
+                            <label for="debug"><i class="fas fa-bug"></i> Debug Mode</label>
+                        </div>
+                        
+                        <div class="option-item">
+                            <input type="checkbox" id="disable_acf" name="disable_acf" value="true">
+                            <label for="disable_acf"><i class="fas fa-ban"></i> Disable ACF</label>
+                        </div>
+                        
+                        <div class="option-item">
+                            <input type="checkbox" id="dump_code" name="dump_code" value="true">
+                            <label for="dump_code"><i class="fas fa-code"></i> Dump Code</label>
+                        </div>
+                        
+                        <div class="option-item">
+                            <input type="checkbox" id="keep_classes" name="keep_classes" value="true">
+                            <label for="keep_classes"><i class="fas fa-bookmark"></i> Keep Classes</label>
+                        </div>
+                        
+                        <div class="option-item">
+                            <input type="checkbox" id="noisy_log" name="noisy_log" value="true">
+                            <label for="noisy_log"><i class="fas fa-volume-up"></i> Noisy Log</label>
+                        </div>
+                        
+                        <div class="option-item">
+                            <input type="checkbox" id="smaller" name="smaller" value="true">
+                            <label for="smaller"><i class="fas fa-compress"></i> Smaller Size</label>
+                        </div>
+                        
+                        <div class="option-item">
+                            <input type="checkbox" id="use_rules" name="use_rules" value="true">
+                            <label for="use_rules"><i class="fas fa-list-check"></i> Use Rules File</label>
+                        </div>
+                        
+                        <div class="option-item">
+                            <input type="checkbox" id="use_protect_config" name="use_protect_config" value="true">
+                            <label for="use_protect_config"><i class="fas fa-shield-halved"></i> Use Protect Config</label>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="exclude_abis">Exclude ABIs (comma separated)</label>
+                        <input type="text" id="exclude_abis" name="exclude_abis" placeholder="e.g., x86,x86_64">
+                        <small>Supported: arm, arm64, x86, x86_64</small>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <i class="fas fa-rocket"></i> Protect APK
+                </button>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">
+                        <i class="fas fa-cog fa-spin"></i> Processing your APK... This may take a few minutes.
+                    </div>
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage"></div>
+
+                <!-- Result Section -->
+                <div class="result-section" id="resultSection">
+                    <div class="result-header">
+                        <div class="result-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="result-title">APK Successfully Protected!</div>
+                    </div>
+                    
+                    <div class="result-info" id="resultInfo">
+                        <div class="result-info-item">
+                            <span class="result-info-label">File Name:</span>
+                            <span class="result-info-value" id="resultFileName">-</span>
+                        </div>
+                        <div class="result-info-item">
+                            <span class="result-info-label">File Size:</span>
+                            <span class="result-info-value" id="resultFileSize">-</span>
+                        </div>
+                        <div class="result-info-item">
+                            <span class="result-info-label">Status:</span>
+                            <span class="result-info-value" style="color: #4ade80;">Protected & Ready</span>
+                        </div>
+                    </div>
+
+                    <button class="download-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i>
+                        <span>Download Protected APK</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('protectForm');
+        const fileInput = document.getElementById('apkFile');
+        const fileUpload = document.getElementById('fileUpload');
+        const fileName = document.getElementById('fileName');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const resultSection = document.getElementById('resultSection');
+        const resultFileName = document.getElementById('resultFileName');
+        const resultFileSize = document.getElementById('resultFileSize');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        let protectedFileBlob = null;
+        let protectedFileName = '';
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                fileName.textContent = e.target.files[0].name;
+            }
+        });
+
+        // Drag and drop
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                fileName.textContent = e.dataTransfer.files[0].name;
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide messages and results
+            errorMessage.classList.remove('active');
+            successMessage.classList.remove('active');
+            resultSection.classList.remove('active');
+            protectedFileBlob = null;
+            
+            // Validate file
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showError('Please select an APK or AAB file');
+                return;
+            }
+
+            // Show loading
+            loading.classList.add('active');
+            submitBtn.disabled = true;
+
+            // Create FormData
+            const formData = new FormData(form);
+            
+            try {
+                // Create AbortController for timeout handling (optimized for free tier)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 360000); // 6 minutes timeout (free tier: 5 min processing + buffer)
+                
+                const response = await fetch('/protect', {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal,
+                    // Don't set Content-Type, let browser set it with boundary
+                });
+                
+                clearTimeout(timeoutId);
+
+                // Check if response is ok
+                if (!response.ok) {
+                    // Try to get error message
+                    let errorMsg = 'Failed to protect APK';
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorData.details || errorMsg;
+                    } catch (e) {
+                        errorMsg = `Server error: ${response.status} ${response.statusText}`;
+                    }
+                    showError(errorMsg);
+                    return;
+                }
+
+                // Get the file blob with progress tracking for large files
+                const contentLength = response.headers.get('content-length');
+                const total = contentLength ? parseInt(contentLength, 10) : 0;
+                const contentType = response.headers.get('content-type') || '';
+                
+                // Check if response is JSON error
+                if (contentType && contentType.includes('application/json')) {
+                    // It's an error response
+                    const errorData = await response.json();
+                    showError(errorData.error || errorData.details || 'Failed to protect APK');
+                    return;
+                }
+                
+                console.log(`Response headers - Content-Type: ${contentType}, Content-Length: ${total} bytes (${(total / (1024 * 1024)).toFixed(2)} MB)`);
+                
+                // First check if response is actually a JSON error
+                if (contentType.includes('application/json')) {
+                    const errorText = await response.text();
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        showError(errorData.error || errorData.details || 'Protection failed');
+                    } catch (e) {
+                        showError('Protection failed. Please check the terminal for details.');
+                    }
+                    return;
+                }
+                
+                // Read response as blob with better error handling
+                let blob;
+                try {
+                    // For large files (over 30MB), use chunked reading
+                    if (total > 30 * 1024 * 1024) {
+                        console.log('Large file detected (>30MB), using chunked reading...');
+                        
+                        if (!response.body) {
+                            throw new Error('Response body is null or undefined');
+                        }
+                        
+                        const reader = response.body.getReader();
+                        const chunks = [];
+                        let receivedLength = 0;
+                        
+                        try {
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                
+                                if (value) {
+                                    chunks.push(value);
+                                    receivedLength += value.length;
+                                    
+                                    // Update progress
+                                    if (total > 0) {
+                                        const percent = (receivedLength / total * 100).toFixed(1);
+                                        console.log(`Downloading: ${percent}% (${(receivedLength / (1024*1024)).toFixed(2)} MB / ${(total / (1024*1024)).toFixed(2)} MB)`);
+                                    }
+                                }
+                            }
+                            
+                            // Combine all chunks into a single blob
+                            blob = new Blob(chunks, { type: contentType || 'application/vnd.android.package-archive' });
+                            console.log(`Chunked download complete. Blob size: ${(blob.size / (1024*1024)).toFixed(2)} MB`);
+                        } catch (readError) {
+                            console.error('Error reading chunks:', readError);
+                            throw new Error(`Failed to read file in chunks: ${readError.message}`);
+                        }
+                    } else {
+                        // For smaller files, use standard blob()
+                        console.log('Using standard blob() for file download...');
+                        blob = await response.blob();
+                        console.log(`Standard download complete. Blob size: ${(blob.size / (1024*1024)).toFixed(2)} MB`);
+                    }
+                    
+                    // Verify blob is valid
+                    if (!blob || blob.size === 0) {
+                        throw new Error('Received empty or invalid blob');
+                    }
+                    
+                    if (total > 0 && Math.abs(blob.size - total) > 1024) {
+                        console.warn(`Size mismatch: Expected ${total} bytes, got ${blob.size} bytes`);
+                    }
+                    
+                    console.log(`File received successfully. Size: ${(blob.size / (1024*1024)).toFixed(2)} MB`);
+                    
+                } catch (blobError) {
+                    console.error('Blob conversion error:', blobError);
+                    console.error('Error details:', {
+                        name: blobError.name,
+                        message: blobError.message,
+                        stack: blobError.stack
+                    });
+                    
+                    // Try to get error message if response is JSON (clone first)
+                    try {
+                        const responseClone = response.clone();
+                        const errorText = await responseClone.text();
+                        
+                        // Check if it's JSON
+                        if (errorText.trim().startsWith('{')) {
+                            try {
+                                const errorData = JSON.parse(errorText);
+                                showError(errorData.error || errorData.details || 'Failed to receive protected file');
+                                return;
+                            } catch (parseError) {
+                                // Not valid JSON
+                            }
+                        }
+                        
+                        // Not JSON, show generic error
+                        if (errorText.length < 500) {
+                            showError(`Server response: ${errorText.substring(0, 200)}`);
+                        } else {
+                            showError(`Failed to receive file: ${blobError.message}. File size: ${total > 0 ? (total / (1024*1024)).toFixed(2) + ' MB' : 'Unknown'}. Please check browser console and terminal for details.`);
+                        }
+                    } catch (textError) {
+                        // Can't read response text either
+                        showError(`Failed to receive file: ${blobError.message}. File size: ${total > 0 ? (total / (1024*1024)).toFixed(2) + ' MB' : 'Unknown'}. Please try again or check the terminal.`);
+                    }
+                    return;
+                }
+                
+                // Check if blob is empty or error
+                if (blob.size === 0) {
+                    showError('Received empty file. Protection may have failed.');
+                    return;
+                }
+                
+                // Check if blob is actually an error JSON
+                if (blob.type && blob.type.includes('application/json')) {
+                    const errorText = await blob.text();
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        showError(errorData.error || errorData.details || 'Protection failed');
+                    } catch (e) {
+                        showError('Protection failed. Please check the terminal for details.');
+                    }
+                    return;
+                }
+                
+                // Store blob and file info
+                protectedFileBlob = blob;
+                protectedFileName = `protected_${fileInput.files[0].name}`;
+                
+                // Get file size in readable format
+                const fileSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+                const fileSizeKB = (blob.size / 1024).toFixed(2);
+                const fileSizeText = blob.size > 1024 * 1024 
+                    ? `${fileSizeMB} MB` 
+                    : `${fileSizeKB} KB`;
+                
+                // Display result on screen
+                resultFileName.textContent = protectedFileName;
+                resultFileSize.textContent = fileSizeText;
+                resultSection.classList.add('active');
+                
+                // Scroll to result
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                showSuccess('APK protected successfully! Download button is ready below.');
+            } catch (error) {
+                console.error('Fetch error:', error);
+                let errorMsg = 'Network error occurred. ';
+                
+                if (error.name === 'AbortError') {
+                    errorMsg = 'Request timed out. Free tier limit: 5 minutes processing time. Please try a smaller APK (max 150MB) or wait and retry.';
+                } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    errorMsg = 'Connection failed. Please check: 1) Server is running, 2) No firewall blocking, 3) Try refreshing the page.';
+                } else if (error.message) {
+                    errorMsg += error.message;
+                } else if (error.name === 'TypeError') {
+                    errorMsg += 'Could not connect to server. Please check if the server is running.';
+                } else {
+                    errorMsg += 'Please try again or check your connection.';
+                }
+                
+                showError(errorMsg);
+                console.error('Full error details:', error);
+            } finally {
+                loading.classList.remove('active');
+                submitBtn.disabled = false;
+            }
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('active');
+        }
+
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.classList.add('active');
+        }
+
+        // Download button handler
+        downloadBtn.addEventListener('click', () => {
+            if (protectedFileBlob && protectedFileName) {
+                const url = window.URL.createObjectURL(protectedFileBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = protectedFileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Show success message
+                showSuccess('Download started!');
+            } else {
+                showError('No protected file available. Please protect an APK first.');
+            }
+        });
+    </script>
+</body>
+</html>
