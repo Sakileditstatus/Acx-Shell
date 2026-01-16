@@ -9,7 +9,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -20,7 +20,7 @@
         }
         
         body {
-            font-family: 'Inter', 'Poppins', sans-serif;
+            font-family: 'El Messiri', sans-serif;
             background: #000000;
             min-height: 100vh;
             color: #ffffff;
@@ -208,20 +208,20 @@
                 <form id="protectForm" enctype="multipart/form-data">
                     <!-- Upload Section -->
                     <div class="glass-strong rounded-3xl p-6 md:p-8 mb-6">
-                        <div class="file-upload-area border-2 border-dashed border-white border-opacity-20 rounded-2xl p-8 md:p-12 text-center cursor-pointer hover:border-opacity-40 transition-all" id="fileUpload">
-                            <input type="file" id="apkFile" name="apk_file" class="hidden" accept=".apk,.aab" required>
-                            <div class="text-6xl md:text-7xl mb-4 float-animation">
+                        <div class="file-upload-area border-2 border-dashed border-white border-opacity-20 rounded-2xl p-8 md:p-12 text-center cursor-pointer hover:border-opacity-40 transition-all relative" id="fileUpload">
+                            <input type="file" id="apkFile" name="apk_file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".apk,.aab" required>
+                            <div class="text-6xl md:text-7xl mb-4 float-animation pointer-events-none">
                                 <i class="fas fa-cloud-upload-alt text-indigo-400"></i>
                             </div>
-                            <p class="text-lg md:text-xl font-semibold mb-2">
+                            <p class="text-lg md:text-xl font-semibold mb-2 pointer-events-none">
                                 <i class="fas fa-hand-pointer mr-2"></i>Click to upload
                                 <span class="text-gray-400 mx-2">or</span>
                                 <i class="fas fa-arrows-alt mr-2"></i>drag and drop
                             </p>
-                            <p class="text-gray-400 text-sm mt-2">
+                            <p class="text-gray-400 text-sm mt-2 pointer-events-none">
                                 <i class="fas fa-file-archive mr-2"></i>APK or AAB file (Max 150MB - Free Tier)
                             </p>
-                            <div id="fileName" class="mt-4 text-indigo-400 font-semibold"></div>
+                            <div id="fileName" class="mt-4 text-indigo-400 font-semibold hidden pointer-events-none break-all"></div>
                         </div>
                     </div>
                     
@@ -404,58 +404,111 @@
         let protectedFileName = '';
         let progressInterval = null;
         
-        // File Input
+        // File Input Change Handler - Fixed
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                fileName.textContent = e.target.files[0].name;
+            if (e.target.files && e.target.files.length > 0) {
+                const selectedFile = e.target.files[0];
+                // Validate file type
+                const fileExt = selectedFile.name.toLowerCase().split('.').pop();
+                if (fileExt !== 'apk' && fileExt !== 'aab') {
+                    showError('Invalid file type. Please select an APK or AAB file.');
+                    fileInput.value = '';
+                    fileName.classList.add('hidden');
+                    return;
+                }
+                // Validate file size (150MB)
+                const fileSizeMB = selectedFile.size / (1024 * 1024);
+                if (fileSizeMB > 150) {
+                    showError(`File size (${fileSizeMB.toFixed(2)} MB) exceeds maximum allowed size (150 MB).`);
+                    fileInput.value = '';
+                    fileName.classList.add('hidden');
+                    return;
+                }
+                // Show file name
+                fileName.textContent = selectedFile.name;
+                fileName.classList.remove('hidden');
+                // Hide any previous errors
+                errorMessage.classList.add('hidden');
             }
         });
         
-        // Drag and Drop
+        // Drag and Drop - Fixed
         fileUpload.addEventListener('dragover', (e) => {
             e.preventDefault();
-            fileUpload.classList.add('border-indigo-400', 'bg-opacity-20');
+            e.stopPropagation();
+            fileUpload.classList.add('border-indigo-400');
+            fileUpload.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
         });
         
-        fileUpload.addEventListener('dragleave', () => {
-            fileUpload.classList.remove('border-indigo-400', 'bg-opacity-20');
+        fileUpload.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileUpload.classList.remove('border-indigo-400');
+            fileUpload.style.backgroundColor = '';
         });
         
         fileUpload.addEventListener('drop', (e) => {
             e.preventDefault();
-            fileUpload.classList.remove('border-indigo-400', 'bg-opacity-20');
-            if (e.dataTransfer.files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                fileName.textContent = e.dataTransfer.files[0].name;
+            e.stopPropagation();
+            fileUpload.classList.remove('border-indigo-400');
+            fileUpload.style.backgroundColor = '';
+            
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const droppedFile = e.dataTransfer.files[0];
+                // Create a new FileList-like object
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(droppedFile);
+                fileInput.files = dataTransfer.files;
+                
+                // Trigger change event
+                const changeEvent = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(changeEvent);
             }
         });
         
-        // Progress Animation
+        // Progress Animation - Fixed to reach 100%
         function startProgress() {
             let progress = 1;
             progressInterval = setInterval(() => {
-                if (progress < 95) {
-                    progress += Math.random() * 3;
-                    if (progress > 95) progress = 95;
+                if (progress < 90) {
+                    progress += Math.random() * 2.5;
+                    if (progress > 90) progress = 90;
                     updateProgress(progress);
                 }
-            }, 500);
+            }, 300);
         }
         
         function updateProgress(percent) {
-            progressBar.style.width = percent + '%';
-            progressPercent.textContent = Math.floor(percent) + '%';
+            const clampedPercent = Math.min(100, Math.max(0, percent));
+            progressBar.style.width = clampedPercent + '%';
+            progressPercent.textContent = Math.floor(clampedPercent) + '%';
         }
         
-        function stopProgress() {
+        function completeProgress() {
             if (progressInterval) {
                 clearInterval(progressInterval);
                 progressInterval = null;
             }
-            updateProgress(100);
-            setTimeout(() => {
-                progressContainer.classList.add('hidden');
-            }, 1000);
+            // Animate to 100%
+            let currentProgress = parseFloat(progressBar.style.width) || 0;
+            const targetProgress = 100;
+            const step = (targetProgress - currentProgress) / 10;
+            
+            const animateTo100 = setInterval(() => {
+                currentProgress += step;
+                if (currentProgress >= targetProgress) {
+                    currentProgress = 100;
+                    clearInterval(animateTo100);
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                    }, 500);
+                }
+                updateProgress(currentProgress);
+            }, 50);
+        }
+        
+        function stopProgress() {
+            completeProgress();
         }
         
         // Form Submission
@@ -520,65 +573,99 @@
                     return;
                 }
                 
-                // Get file blob
+                // Get file blob with proper error handling - Fast and instant
                 let blob;
-                const contentLength = response.headers.get('content-length');
-                const total = contentLength ? parseInt(contentLength, 10) : 0;
-                
-                if (total > 30 * 1024 * 1024) {
-                    // Large file - chunked reading
-                    const reader = response.body.getReader();
-                    const chunks = [];
-                    let receivedLength = 0;
+                try {
+                    const contentLength = response.headers.get('content-length');
+                    const total = contentLength ? parseInt(contentLength, 10) : 0;
                     
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        if (value) {
-                            chunks.push(value);
-                            receivedLength += value.length;
-                            if (total > 0) {
-                                const percent = Math.min(95 + (receivedLength / total * 5), 99);
-                                updateProgress(percent);
-                            }
+                    // Update progress to 95% while reading
+                    updateProgress(95);
+                    
+                    if (total > 30 * 1024 * 1024) {
+                        // Large file - chunked reading with progress
+                        if (!response.body) {
+                            throw new Error('Response body is not available');
                         }
+                        
+                        const reader = response.body.getReader();
+                        const chunks = [];
+                        let receivedLength = 0;
+                        
+                        try {
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                if (value) {
+                                    chunks.push(value);
+                                    receivedLength += value.length;
+                                    if (total > 0) {
+                                        // Progress from 95% to 99% while downloading
+                                        const downloadPercent = 95 + (receivedLength / total * 4);
+                                        updateProgress(Math.min(downloadPercent, 99));
+                                    }
+                                }
+                            }
+                            blob = new Blob(chunks, { type: contentType || 'application/vnd.android.package-archive' });
+                        } catch (readError) {
+                            console.error('Error reading chunks:', readError);
+                            throw new Error('Failed to read file in chunks');
+                        }
+                    } else {
+                        // Small file - instant read
+                        blob = await response.blob();
                     }
-                    blob = new Blob(chunks, { type: contentType || 'application/vnd.android.package-archive' });
-                } else {
-                    blob = await response.blob();
-                }
-                
-                if (!blob || blob.size === 0) {
-                    showError('Received empty file. Protection may have failed.');
+                    
+                    // Complete progress to 100%
+                    updateProgress(100);
+                    
+                    if (!blob || blob.size === 0) {
+                        showError('Received empty file. Protection may have failed.');
+                        stopProgress();
+                        return;
+                    }
+                    
+                    // Check if blob is actually an error JSON
+                    if (blob.type && blob.type.includes('application/json')) {
+                        try {
+                            const errorText = await blob.text();
+                            const errorData = JSON.parse(errorText);
+                            showError(errorData.error || errorData.details || 'Protection failed');
+                        } catch (e) {
+                            showError('Protection failed. Please try again.');
+                        }
+                        stopProgress();
+                        return;
+                    }
+                    
+                    // Store blob safely - File is ready instantly!
+                    protectedFileBlob = blob;
+                    protectedFileName = `protected_${fileInput.files[0].name}`;
+                    
+                    const fileSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+                    const fileSizeKB = (blob.size / 1024).toFixed(2);
+                    const fileSizeText = blob.size > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
+                    
+                    // Hide progress and show result immediately
+                    stopProgress();
+                    
+                    // Display result instantly
+                    resultFileName.textContent = protectedFileName;
+                    resultFileSize.textContent = fileSizeText;
+                    resultSection.classList.remove('hidden');
+                    
+                    // Smooth scroll to result
+                    setTimeout(() => {
+                        resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        showSuccess('APK protected successfully! Download button is ready below.');
+                    }, 100);
+                    
+                } catch (blobError) {
+                    console.error('Blob error:', blobError);
+                    stopProgress();
+                    showError('Failed to receive protected file: ' + blobError.message);
                     return;
                 }
-                
-                if (blob.type && blob.type.includes('application/json')) {
-                    const errorText = await blob.text();
-                    try {
-                        const errorData = JSON.parse(errorText);
-                        showError(errorData.error || 'Protection failed');
-                    } catch (e) {
-                        showError('Protection failed');
-                    }
-                    return;
-                }
-                
-                // Store blob
-                protectedFileBlob = blob;
-                protectedFileName = `protected_${fileInput.files[0].name}`;
-                
-                const fileSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
-                const fileSizeKB = (blob.size / 1024).toFixed(2);
-                const fileSizeText = blob.size > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
-                
-                // Display result
-                resultFileName.textContent = protectedFileName;
-                resultFileSize.textContent = fileSizeText;
-                resultSection.classList.remove('hidden');
-                resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                
-                showSuccess('APK protected successfully! Download button is ready below.');
             } catch (error) {
                 stopProgress();
                 let errorMsg = 'Network error occurred. ';
@@ -610,20 +697,82 @@
             successMessage.classList.remove('hidden');
         }
         
-        // Download Button
-        downloadBtn.addEventListener('click', () => {
-            if (protectedFileBlob && protectedFileName) {
-                const url = window.URL.createObjectURL(protectedFileBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = protectedFileName;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                showSuccess('Download started!');
-            } else {
+        // Download Button - Fixed to prevent crashes, instant download
+        downloadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Validate immediately
+            if (!protectedFileBlob) {
                 showError('No protected file available. Please protect an APK first.');
+                return;
+            }
+            
+            if (!protectedFileName) {
+                showError('File name is missing. Please protect the APK again.');
+                return;
+            }
+            
+            // Verify blob is valid
+            if (protectedFileBlob.size === 0) {
+                showError('Protected file is empty. Please protect the APK again.');
+                return;
+            }
+            
+            // Instant download - no delays
+            let url = null;
+            let downloadLink = null;
+            
+            try {
+                // Create object URL
+                url = window.URL.createObjectURL(protectedFileBlob);
+                
+                // Create download link
+                downloadLink = document.createElement('a');
+                downloadLink.href = url;
+                downloadLink.download = protectedFileName;
+                downloadLink.style.display = 'none';
+                downloadLink.setAttribute('download', protectedFileName);
+                
+                // Append to body
+                document.body.appendChild(downloadLink);
+                
+                // Trigger download immediately - no setTimeout
+                downloadLink.click();
+                
+                // Show success immediately
+                showSuccess('Download started!');
+                
+                // Cleanup after a short delay
+                setTimeout(() => {
+                    try {
+                        if (url) {
+                            window.URL.revokeObjectURL(url);
+                        }
+                        if (downloadLink && document.body.contains(downloadLink)) {
+                            document.body.removeChild(downloadLink);
+                        }
+                    } catch (cleanupError) {
+                        console.warn('Cleanup warning:', cleanupError);
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Download error:', error);
+                
+                // Fallback methods
+                try {
+                    if (url) {
+                        // Try opening in new tab
+                        window.open(url, '_blank');
+                        showSuccess('Opening file in new tab. Please save it manually.');
+                    } else {
+                        showError('Failed to create download. Please try again.');
+                    }
+                } catch (fallbackError) {
+                    console.error('Fallback error:', fallbackError);
+                    showError('Download failed. Please try protecting the APK again.');
+                }
             }
         });
     </script>

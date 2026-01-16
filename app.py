@@ -179,7 +179,7 @@ def protect_apk():
             options_used.append('dump-code')
         
         if request.form.get('keep_classes') == 'true':
-            cmd.append('--keep-classes')
+            cmd.append('-K')  # Short form: -K,--keep-classes
             options_used.append('keep-classes')
         
         if request.form.get('noisy_log') == 'true':
@@ -187,7 +187,7 @@ def protect_apk():
             options_used.append('noisy-log')
         
         if request.form.get('smaller') == 'true':
-            cmd.append('--smaller')
+            cmd.append('-S')  # Short form: -S,--smaller
             options_used.append('smaller')
         
         # APK will always be signed (no-sign option removed)
@@ -389,32 +389,57 @@ def protect_apk():
             # Generate a unique filename
             output_filename = f"protected_{secure_filename(file.filename)}"
             
-            # Read file into memory before cleanup
-            with open(output_file, 'rb') as f:
-                file_data = f.read()
+            # Read file into memory before cleanup - with error handling
+            try:
+                logger.info(f"Reading output file: {output_file}")
+                with open(output_file, 'rb') as f:
+                    file_data = f.read()
+                
+                if not file_data or len(file_data) == 0:
+                    logger.error("Output file is empty!")
+                    return jsonify({
+                        'error': 'Protected file is empty',
+                        'details': 'The protection process completed but generated an empty file. Please try again.'
+                    }), 500
+                
+                logger.info(f"File read successfully. Size: {len(file_data) / (1024*1024):.2f} MB")
+            except IOError as e:
+                logger.error(f"Error reading output file: {e}")
+                return jsonify({
+                    'error': 'Failed to read protected file',
+                    'details': f'Could not read the output file: {str(e)}'
+                }), 500
+            except Exception as e:
+                logger.error(f"Unexpected error reading file: {e}")
+                logger.error(traceback.format_exc())
+                return jsonify({
+                    'error': 'Unexpected error reading file',
+                    'details': str(e)
+                }), 500
             
-            # Cleanup temporary directory and any project root folders
+            # Cleanup temporary directory and any project root folders (after reading file)
             try:
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 # Also clean up any package name folders created in project root by dump-code
                 project_root = os.path.dirname(os.path.abspath(__file__))
-                for item in os.listdir(project_root):
-                    item_path = os.path.join(project_root, item)
-                    if os.path.isdir(item_path) and '.' in item and item != 'venv' and not item.startswith('.'):
-                        # Check if it contains .json files (dump-code output)
-                        try:
-                            has_json = False
-                            for root, dirs, files in os.walk(item_path):
-                                if any(f.endswith('.json') for f in files):
-                                    has_json = True
-                                    break
-                            if has_json:
-                                logger.info(f"Cleaning up dump-code folder: {item}")
-                                shutil.rmtree(item_path, ignore_errors=True)
-                        except:
-                            pass
-            except:
-                pass
+                if os.path.exists(project_root):
+                    for item in os.listdir(project_root):
+                        item_path = os.path.join(project_root, item)
+                        if os.path.isdir(item_path) and '.' in item and item != 'venv' and not item.startswith('.'):
+                            # Check if it contains .json files (dump-code output)
+                            try:
+                                has_json = False
+                                for root, dirs, files in os.walk(item_path):
+                                    if any(f.endswith('.json') for f in files):
+                                        has_json = True
+                                        break
+                                if has_json:
+                                    logger.info(f"Cleaning up dump-code folder: {item}")
+                                    shutil.rmtree(item_path, ignore_errors=True)
+                            except Exception as cleanup_error:
+                                logger.warning(f"Error cleaning up {item_path}: {cleanup_error}")
+            except Exception as cleanup_error:
+                logger.warning(f"Error during cleanup: {cleanup_error}")
             
             logger.info("=" * 60)
             logger.info("PROTECTION SUCCESSFUL!")
@@ -422,37 +447,50 @@ def protect_apk():
             logger.info(f"File size: {len(file_data) / (1024*1024):.2f} MB")
             logger.info("=" * 60)
             
-            # Create response from memory with proper headers for large files
+            # Create response from memory with proper headers for large files - crash prevention
             from io import BytesIO
             from flask import Response
             
-            file_size = len(file_data)
-            file_size_mb = file_size / (1024 * 1024)
-            
-            logger.info(f"Preparing file response. Size: {file_size_mb:.2f} MB ({file_size} bytes)")
-            
-            # For very large files, ensure we're using BytesIO correctly
-            file_stream = BytesIO(file_data)
-            file_stream.seek(0)  # Reset to beginning
-            
-            response = Response(
-                file_stream,
-                mimetype='application/vnd.android.package-archive',
-                headers={
-                    'Content-Disposition': f'attachment; filename="{output_filename}"',
-                    'Content-Length': str(file_size),
-                    'Content-Type': 'application/vnd.android.package-archive',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0',
-                    'Accept-Ranges': 'bytes',
-                    'Connection': 'keep-alive'
-                },
-                direct_passthrough=False  # Ensure Flask handles the streaming
-            )
-            
-            logger.info(f"File response created. Headers set. Starting transfer...")
-            return response
+            try:
+                file_size = len(file_data)
+                file_size_mb = file_size / (1024 * 1024)
+                
+                logger.info(f"Preparing file response. Size: {file_size_mb:.2f} MB ({file_size} bytes)")
+                
+                # For very large files, ensure we're using BytesIO correctly
+                file_stream = BytesIO(file_data)
+                file_stream.seek(0)  # Reset to beginning
+                
+                # Verify file stream is valid
+                if file_stream.tell() != 0:
+                    file_stream.seek(0)
+                
+                response = Response(
+                    file_stream,
+                    mimetype='application/vnd.android.package-archive',
+                    headers={
+                        'Content-Disposition': f'attachment; filename="{output_filename}"',
+                        'Content-Length': str(file_size),
+                        'Content-Type': 'application/vnd.android.package-archive',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0',
+                        'Accept-Ranges': 'bytes',
+                        'Connection': 'keep-alive'
+                    },
+                    direct_passthrough=False  # Ensure Flask handles the streaming
+                )
+                
+                logger.info(f"File response created. Headers set. Starting transfer...")
+                return response
+                
+            except Exception as response_error:
+                logger.error(f"Error creating response: {response_error}")
+                logger.error(traceback.format_exc())
+                return jsonify({
+                    'error': 'Failed to create file response',
+                    'details': f'Error: {str(response_error)}'
+                }), 500
             
         except subprocess.TimeoutExpired:
             # Restore original working directory
