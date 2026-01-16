@@ -161,50 +161,64 @@ def protect_apk():
                 'details': f'Error: {str(e)}'
             }), 500
         
-        # Build command
-        cmd = [java_cmd, '-jar', DPT_JAR_PATH, '-f', input_file_path, '-o', output_dir]
+        # Build command exactly as per dpt.jar usage: java -jar dpt.jar [option] -f <package_file> -o <output_dir>
+        # Note: APK is signed by default (no --no-sign option used)
+        cmd = [java_cmd, '-jar', DPT_JAR_PATH]
         
-        # Add options based on form data
+        # Add options based on form data (before -f and -o as per usage)
         options_used = []
-        if request.form.get('debug') == 'true':
-            cmd.append('--debug')
-            options_used.append('debug')
         
-        if request.form.get('disable_acf') == 'true':
-            cmd.append('--disable-acf')
-            options_used.append('disable-acf')
-        
-        if request.form.get('dump_code') == 'true':
-            cmd.append('--dump-code')
-            options_used.append('dump-code')
-        
-        if request.form.get('keep_classes') == 'true':
-            cmd.append('-K')  # Short form: -K,--keep-classes
-            options_used.append('keep-classes')
-        
-        if request.form.get('noisy_log') == 'true':
-            cmd.append('--noisy-log')
-            options_used.append('noisy-log')
-        
-        if request.form.get('smaller') == 'true':
-            cmd.append('-S')  # Short form: -S,--smaller
-            options_used.append('smaller')
-        
-        # APK will always be signed (no-sign option removed)
-        logger.info("APK will be signed by dpt.jar (default behavior)")
-        
-        # Exclude ABIs
-        exclude_abis = request.form.get('exclude_abis', '').strip()
-        if exclude_abis:
-            cmd.extend(['-e', exclude_abis])
-            options_used.append(f'exclude-abis: {exclude_abis}')
-        
-        # Protect config
+        # Protect config (must come before -f)
         if request.form.get('use_protect_config') == 'true':
             config_file = os.path.join(os.path.dirname(__file__), 'executable', 'dpt-protect-config-template.json')
             if os.path.exists(config_file):
                 cmd.extend(['-c', config_file])
                 options_used.append('protect-config')
+        
+        # Debug mode
+        if request.form.get('debug') == 'true':
+            cmd.append('--debug')
+            options_used.append('debug')
+        
+        # Disable ACF
+        if request.form.get('disable_acf') == 'true':
+            cmd.append('--disable-acf')
+            options_used.append('disable-acf')
+        
+        # Dump code
+        if request.form.get('dump_code') == 'true':
+            cmd.append('--dump-code')
+            options_used.append('dump-code')
+        
+        # Exclude ABIs (must come before -f)
+        exclude_abis = request.form.get('exclude_abis', '').strip()
+        if exclude_abis:
+            cmd.extend(['-e', exclude_abis])
+            options_used.append(f'exclude-abis: {exclude_abis}')
+        
+        # Required: package file (-f)
+        cmd.extend(['-f', input_file_path])
+        
+        # Keep classes (-K)
+        if request.form.get('keep_classes') == 'true':
+            cmd.append('-K')
+            options_used.append('keep-classes')
+        
+        # Noisy log
+        if request.form.get('noisy_log') == 'true':
+            cmd.append('--noisy-log')
+            options_used.append('noisy-log')
+        
+        # Required: output directory (-o)
+        cmd.extend(['-o', output_dir])
+        
+        # Smaller size (-S)
+        if request.form.get('smaller') == 'true':
+            cmd.append('-S')
+            options_used.append('smaller')
+        
+        # APK will always be signed by dpt.jar (default behavior, no --no-sign option)
+        logger.info("APK will be signed by dpt.jar (default behavior - no --no-sign option)")
         
         logger.info(f"Options selected: {', '.join(options_used) if options_used else 'None'}")
         logger.info(f"Running command: {' '.join(cmd)}")
@@ -244,19 +258,31 @@ def protect_apk():
                     'details': error_details
                 }), 500
             
-            # Find the output file
+            # Find the output file - dpt.jar creates signed APK with _signed suffix
             logger.info("Searching for output file...")
             output_files = []
+            
+            # First, check for signed APK (dpt.jar default output)
+            signed_patterns = ['_signed.apk', '_signed.aab', '.apk', '.aab']
+            
             for root, dirs, files in os.walk(output_dir):
                 for f in files:
                     if f.endswith(('.apk', '.aab')):
-                        output_files.append(os.path.join(root, f))
+                        full_path = os.path.join(root, f)
+                        output_files.append(full_path)
+                        logger.info(f"Found potential output file: {full_path}")
+            
+            # Prioritize signed APK files
+            signed_files = [f for f in output_files if '_signed' in os.path.basename(f)]
+            if signed_files:
+                output_files = signed_files
             
             if not output_files:
                 logger.error("=" * 60)
                 logger.error("NO OUTPUT FILE GENERATED")
                 logger.error("=" * 60)
                 logger.error(f"Output directory: {output_dir}")
+                logger.error(f"Directory contents: {os.listdir(output_dir) if os.path.exists(output_dir) else 'Directory does not exist'}")
                 logger.error(f"STDOUT:\n{result.stdout}")
                 logger.error(f"STDERR:\n{result.stderr}")
                 logger.error("=" * 60)
@@ -266,7 +292,25 @@ def protect_apk():
                 }), 500
             
             output_file = output_files[0]
-            logger.info(f"Found output file: {output_file}")
+            logger.info(f"Using output file: {output_file}")
+            
+            # Verify file exists and is not empty
+            if not os.path.exists(output_file):
+                logger.error(f"Output file does not exist: {output_file}")
+                return jsonify({
+                    'error': 'Output file not found',
+                    'details': f'The protection process completed but the output file was not found: {output_file}'
+                }), 500
+            
+            file_size = os.path.getsize(output_file)
+            if file_size == 0:
+                logger.error(f"Output file is empty: {output_file}")
+                return jsonify({
+                    'error': 'Output file is empty',
+                    'details': 'The protection process completed but generated an empty file. Please try again.'
+                }), 500
+            
+            logger.info(f"Output file verified. Size: {file_size / (1024*1024):.2f} MB")
             
             # Verify APK signature (always verify since signing is always enabled)
             try:
@@ -381,17 +425,22 @@ def protect_apk():
             except Exception as e:
                 logger.warning(f"Error during cleanup: {e}")
             
-            # Return the first output file
-            output_file = output_files[0]
-            output_size = os.path.getsize(output_file)
-            logger.info(f"Output file size: {output_size / (1024*1024):.2f} MB")
-            
             # Generate a unique filename
             output_filename = f"protected_{secure_filename(file.filename)}"
             
-            # Read file into memory before cleanup - with error handling
+            # Read file into memory before cleanup - with error handling and verification and verification
             try:
                 logger.info(f"Reading output file: {output_file}")
+                
+                # Verify file is a valid APK/AAB before reading
+                if not os.path.exists(output_file):
+                    logger.error(f"Output file does not exist: {output_file}")
+                    return jsonify({
+                        'error': 'Output file not found',
+                        'details': 'The protection process completed but the output file was not found.'
+                    }), 500
+                
+                # Read file in binary mode to preserve integrity
                 with open(output_file, 'rb') as f:
                     file_data = f.read()
                 
@@ -402,7 +451,23 @@ def protect_apk():
                         'details': 'The protection process completed but generated an empty file. Please try again.'
                     }), 500
                 
+                # Verify file is not corrupted (basic check - APK/AAB should start with ZIP signature)
+                if len(file_data) < 4:
+                    logger.error("Output file is too small to be valid!")
+                    return jsonify({
+                        'error': 'Protected file is invalid',
+                        'details': 'The generated file is too small to be a valid APK/AAB file.'
+                    }), 500
+                
+                # Check for ZIP signature (APK/AAB files are ZIP archives)
+                zip_signature = file_data[:2]
+                if zip_signature != b'PK':
+                    logger.warning(f"File may not be a valid APK/AAB (missing ZIP signature). Signature: {zip_signature}")
+                    # Continue anyway as some files might be valid
+                
                 logger.info(f"File read successfully. Size: {len(file_data) / (1024*1024):.2f} MB")
+                logger.info(f"File signature check: {'Valid ZIP' if zip_signature == b'PK' else 'Warning: May not be ZIP format'}")
+                
             except IOError as e:
                 logger.error(f"Error reading output file: {e}")
                 return jsonify({
