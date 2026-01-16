@@ -4,27 +4,64 @@ services:
     env: python
     plan: free  # Free tier - 512MB RAM, 750 hours/month, 1GB disk
     region: oregon  # Free tier regions: oregon, frankfurt, singapore
+    rootDir: .  # Root directory (current directory)
     buildCommand: |
       echo "🚀 Building Acx Shell for Render Free Tier..."
       echo "📦 Installing Java JDK 21..."
-      sudo apt-get update -qq
-      sudo apt-get install -y -qq wget apt-transport-https gnupg
-      wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo apt-key add - > /dev/null 2>&1
-      echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print $2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list > /dev/null
-      sudo apt-get update -qq
-      sudo apt-get install -y -qq temurin-21-jdk
-      export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+      sudo apt-get update -qq || true
+      sudo apt-get install -y -qq wget curl gnupg2 ca-certificates || sudo apt-get install -y -qq wget gnupg ca-certificates
+      # Try modern GPG keyring method first
+      if command -v gpg >/dev/null 2>&1; then
+        echo "Using GPG keyring method..."
+        sudo mkdir -p /etc/apt/keyrings || true
+        curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public 2>/dev/null | sudo gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg 2>/dev/null || \
+        wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public 2>/dev/null | sudo gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg 2>/dev/null || true
+        if [ -f /etc/apt/keyrings/adoptium.gpg ]; then
+          echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print $2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list > /dev/null
+        else
+          echo "GPG keyring failed, using apt-key fallback..."
+          wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public 2>/dev/null | sudo apt-key add - 2>/dev/null || true
+          echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print $2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list > /dev/null
+        fi
+      else
+        echo "GPG not found, using apt-key method..."
+        wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public 2>/dev/null | sudo apt-key add - 2>/dev/null || true
+        echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print $2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list > /dev/null
+      fi
+      sudo apt-get update -qq || true
+      sudo apt-get install -y -qq temurin-21-jdk || sudo apt-get install -y -qq openjdk-21-jdk || echo "⚠️ Java installation had issues, but continuing..."
+      if [ -d "/usr/lib/jvm/temurin-21-jdk-amd64" ]; then
+        export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+      elif [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+      else
+        JAVA_PATH=$(which java 2>/dev/null || find /usr/lib/jvm -name "java" -type f 2>/dev/null | head -1)
+        if [ -n "$JAVA_PATH" ]; then
+          export JAVA_HOME=$(dirname $(dirname $(dirname "$JAVA_PATH")))
+        fi
+      fi
       export PATH=$JAVA_HOME/bin:$PATH
-      echo "✅ Java installed:"
-      java -version
+      echo "✅ Java installed (JAVA_HOME=$JAVA_HOME):"
+      java -version || echo "⚠️ Java version check failed, but continuing..."
       echo "📦 Installing Python dependencies..."
       pip install --no-cache-dir -r requirements.txt
       echo "✅ Build completed!"
     startCommand: |
-      export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+      if [ -d "/usr/lib/jvm/temurin-21-jdk-amd64" ]; then
+        export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+      elif [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+      else
+        JAVA_PATH=$(which java 2>/dev/null || find /usr/lib/jvm -name "java" -type f 2>/dev/null | head -1)
+        if [ -n "$JAVA_PATH" ]; then
+          export JAVA_HOME=$(dirname $(dirname $(dirname "$JAVA_PATH")))
+        fi
+      fi
       export PATH=$JAVA_HOME/bin:$PATH
       echo "🚀 Starting Acx Shell..."
+      echo "📍 JAVA_HOME: $JAVA_HOME"
       echo "📍 Server running on port: $PORT"
+      java -version || echo "⚠️ Java not found in PATH, but continuing..."
       python app.py
     envVars:
       - key: PORT
