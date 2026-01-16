@@ -5,6 +5,7 @@ import tempfile
 import shutil
 import traceback
 import logging
+import hashlib
 from flask import Flask, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
 
@@ -80,6 +81,20 @@ def protect_apk():
             return jsonify({'error': error_msg}), 400
         
         logger.info(f"File size validated: {file_size_bytes / (1024*1024):.2f} MB (within 150MB free tier limit)")
+        
+        # Calculate file hash to prevent duplicate protection
+        file.seek(0)
+        file_content = file.read()
+        file.seek(0)  # Reset for later use
+        file_hash = hashlib.md5(file_content).hexdigest()
+        logger.info(f"File hash (MD5): {file_hash}")
+        
+        # Check if file was already protected (check if filename starts with "protected_")
+        original_filename = file.filename
+        if original_filename.startswith('protected_'):
+            error_msg = 'This file appears to be already protected. Please upload the original APK file, not the protected version.'
+            logger.warning(f"Duplicate protection attempt detected: {original_filename}")
+            return jsonify({'error': error_msg}), 400
         
         # Create temporary directory for processing (Windows compatible)
         # Use /tmp on Render for better performance, fallback to system temp
@@ -183,26 +198,6 @@ def protect_apk():
         if exclude_abis:
             cmd.extend(['-e', exclude_abis])
             options_used.append(f'exclude-abis: {exclude_abis}')
-        
-        # Rules file - use custom ProGuard rules
-        if request.form.get('use_rules') == 'true':
-            # Try custom rules first, fallback to template if not found
-            custom_rules = os.path.join(os.path.dirname(__file__), 'executable', 'custom-rules.rules')
-            template_rules = os.path.join(os.path.dirname(__file__), 'executable', 'dpt-exclude-classes-template.rules')
-            
-            if os.path.exists(custom_rules):
-                rules_file = custom_rules
-                logger.info("Using custom ProGuard rules file")
-            elif os.path.exists(template_rules):
-                rules_file = template_rules
-                logger.info("Using template rules file (custom-rules.rules not found)")
-            else:
-                logger.warning("No rules file found, skipping rules option")
-                rules_file = None
-            
-            if rules_file:
-                cmd.extend(['-r', rules_file])
-                options_used.append('rules-file')
         
         # Protect config
         if request.form.get('use_protect_config') == 'true':
