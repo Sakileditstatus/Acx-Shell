@@ -497,14 +497,22 @@ def protect_apk():
                 pass
             
             # Cleanup on error
-            logger.error("=" * 60)
-            logger.error("ERROR RUNNING PROTECTION")
-            logger.error("=" * 60)
-            logger.error(f"Error type: {type(e).__name__}")
-            logger.error(f"Error message: {str(e)}")
-            logger.error("Full traceback:")
-            logger.error(traceback.format_exc())
-            logger.error("=" * 60)
+            error_type = type(e).__name__
+            error_msg = str(e) if str(e) else "Unknown error"
+            error_traceback = traceback.format_exc()
+            
+            # Log all error information together to prevent missing messages
+            error_log = f"""
+{'=' * 60}
+ERROR RUNNING PROTECTION
+{'=' * 60}
+Error type: {error_type}
+Error message: {error_msg}
+Full traceback:
+{error_traceback}
+{'=' * 60}
+"""
+            logger.error(error_log)
             
             # Clean up temp directory and any project root folders
             try:
@@ -523,15 +531,23 @@ def protect_apk():
             return jsonify({'error': f'Error running protection: {str(e)}'}), 500
     
     except Exception as e:
-        logger.error("=" * 60)
-        logger.error("SERVER ERROR")
-        logger.error("=" * 60)
-        logger.error(f"Error type: {type(e).__name__}")
-        logger.error(f"Error message: {str(e)}")
-        logger.error("Full traceback:")
-        logger.error(traceback.format_exc())
-        logger.error("=" * 60)
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        error_type = type(e).__name__
+        error_msg = str(e) if str(e) else "Unknown error"
+        error_traceback = traceback.format_exc()
+        
+        # Log all error information together to prevent missing messages
+        error_log = f"""
+{'=' * 60}
+SERVER ERROR
+{'=' * 60}
+Error type: {error_type}
+Error message: {error_msg}
+Full traceback:
+{error_traceback}
+{'=' * 60}
+"""
+        logger.error(error_log)
+        return jsonify({'error': f'Server error: {error_msg}'}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
